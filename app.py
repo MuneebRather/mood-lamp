@@ -4,11 +4,9 @@ from flask import Flask, render_template, jsonify
 
 app = Flask(__name__)
 
-# Track when anger started
 anger_start = None
-ANGER_TIMEOUT = 30  # seconds until crash
-
-# Current mood
+UNHEALTHY_TIMEOUT = 15   # after this, /health reports unhealthy
+CRASH_TIMEOUT = 25       # after this, process exits
 mood = "calm"
 
 @app.route('/')
@@ -23,20 +21,27 @@ def get_mood():
 def set_mood(new_mood):
     global mood, anger_start
     mood = new_mood
-    if mood == "angry":
-        anger_start = time.time()
-    else:
-        anger_start = None
+    anger_start = time.time() if mood == "angry" else None
     return jsonify({"mood": mood})
 
 @app.route('/health')
 def health():
-    if mood == "angry" and anger_start:
-        elapsed = time.time() - anger_start
-        if elapsed > ANGER_TIMEOUT:
-            # Simulate crash
-            return jsonify({"status": "unhealthy", "reason": "too angry"}), 500
-    return jsonify({"status": "healthy", "mood": mood})
+    elapsed = get_anger_time()
+
+    if mood == "angry" and elapsed > CRASH_TIMEOUT:
+        response = jsonify({"status": "unhealthy", "mood": mood, "anger_time": elapsed})
+        response.status_code = 503
+
+        @response.call_on_close
+        def crash():
+            os._exit(1)
+
+        return response
+
+    if mood == "angry" and elapsed > UNHEALTHY_TIMEOUT:
+        return jsonify({"status": "unhealthy", "mood": mood, "anger_time": elapsed}), 503
+
+    return jsonify({"status": "healthy", "mood": mood, "anger_time": elapsed})
 
 def get_anger_time():
     if mood == "angry" and anger_start:
@@ -44,4 +49,4 @@ def get_anger_time():
     return 0
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

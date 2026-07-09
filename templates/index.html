@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mood Lamp</title>
+    <style>
+        body {
+            font-family: system-ui;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .lamp {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 30px;
+            transition: all 0.5s;
+            box-shadow: 0 0 60px currentColor;
+        }
+        .calm { background: #16c79a; color: #16c79a; }
+        .angry { background: #e94560; color: #e94560; }
+        .excited { background: #f9a825; color: #f9a825; }
+        .buttons { display: flex; gap: 15px; }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-calm { background: #16c79a; color: white; }
+        .btn-angry { background: #e94560; color: white; }
+        .btn-excited { background: #f9a825; color: black; }
+        .status {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: #16213e;
+        }
+        .timer { font-size: 24px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🎭 Mood Lamp</h1>
+    <div id="lamp" class="lamp calm"></div>
+    <div class="buttons">
+        <button class="btn-calm" onclick="setMood('calm')">Calm</button>
+        <button class="btn-angry" onclick="setMood('angry')">Angry</button>
+        <button class="btn-excited" onclick="setMood('excited')">Excited</button>
+    </div>
+    <div class="timer" id="timer"></div>
+    <div class="status" id="status">Status: loading...</div>
+
+    <script>
+        async function setMood(m) {
+            await fetch(`/set/${m}`);
+            update();
+        }
+        async function update() {
+            const res = await fetch('/mood');
+            const data = await res.json();
+            const lamp = document.getElementById('lamp');
+            lamp.className = 'lamp ' + data.mood;
+            document.getElementById('timer').textContent = data.anger_time > 0 ? `Anger time: ${data.anger_time}s` : '';
+        }
+        async function checkHealth() {
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                document.getElementById('status').textContent = `Status: ${data.status} | Mood: ${data.mood}`;
+                if (data.status === 'unhealthy') {
+                    document.getElementById('status').style.color = '#e94560';
+                } else {
+                    document.getElementById('status').style.color = '#16c79a';
+                }
+            } catch (e) {
+                document.getElementById('status').textContent = 'Status: DEAD (restarting...)';
+                document.getElementById('status').style.color = '#e94560';
+            }
+        }
+        setInterval(update, 1000);
+        setInterval(checkHealth, 2000);
+        update();
+    </script>
+</body>
+</html>
